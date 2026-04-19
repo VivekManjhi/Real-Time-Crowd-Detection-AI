@@ -1,0 +1,8 @@
+{
+  "gates": [
+    { "name": "Gate_A", "crowd": 150 },
+    { "name": "Gate_B", "crowd": 300 },
+    { "name": "Gate_C", "crowd": 80 },
+    { "name": "Gate_D", "crowd": 30 }
+  ]
+}
