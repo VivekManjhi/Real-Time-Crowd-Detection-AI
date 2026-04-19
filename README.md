@@ -48,10 +48,10 @@ Real-Time-Crowd-Detection-AI/
 ## 📸 Output
 
 ### Dashboard
-![Dashboard](<img width="1784" height="922" alt="Screenshot 2026-04-19 195720" src="https://github.com/user-attachments/assets/6bedcf47-85b5-4827-9991-1d47deaa600d" />
+![Dashboard](<img width="1784" height="922" alt="Screenshot 2026-04-19 195720" src="https://github.com/user-attachments/assets/10047257-1381-4752-beb3-6a5bacd2ab97" />
 )
 
 ### Live Detection
-![Detection](<img width="1736" height="649" alt="Screenshot 2026-04-19 195731" src="https://github.com/user-attachments/assets/000d0399-8529-41a3-aa60-3db97c4bbad0" />
+![Detection](<img width="1736" height="649" alt="Screenshot 2026-04-19 195731" src="https://github.com/user-attachments/assets/009b65ee-4903-4706-aee0-aff6a290ef0d" />
 )
 
