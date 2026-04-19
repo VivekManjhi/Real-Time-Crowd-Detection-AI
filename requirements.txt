@@ -1,6 +1,5 @@
 streamlit
-opencv-python
 ultralytics
-numpy
+opencv-python-headless
 pandas
 plotly
