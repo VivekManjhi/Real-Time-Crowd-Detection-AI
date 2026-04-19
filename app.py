@@ -1,219 +1,113 @@
 import streamlit as st
-import time
+import numpy as np
+from PIL import Image
+from ultralytics import YOLO
 import pandas as pd
 import plotly.express as px
-from ultralytics import YOLO
-
-# ---------------- SAFE OPENCV IMPORT ----------------
-try:
-    import cv2
-except:
-    cv2 = None
+import time
 
 st.set_page_config(layout="wide")
 
 # ---------------- MODEL ----------------
 model = YOLO("yolov8n.pt")
 
-st.title("🏟 Smart Stadium AI System (Cloud Safe Version)")
+st.title("🏟 Smart Stadium AI System (Cloud Fixed Version)")
 
 # ---------------- SESSION STATE ----------------
-if "running" not in st.session_state:
-    st.session_state.running = False
-
 if "history" not in st.session_state:
     st.session_state.history = []
 
-if "gate_index" not in st.session_state:
-    st.session_state.gate_index = 0
-
-if "cycle_count" not in st.session_state:
-    st.session_state.cycle_count = 0
-
-if "frame_count" not in st.session_state:
-    st.session_state.frame_count = 0
+if "cycle" not in st.session_state:
+    st.session_state.cycle = 0
 
 
-# ---------------- BUTTONS ----------------
-col1, col2 = st.columns(2)
+# ---------------- UPLOAD IMAGE ----------------
+uploaded_file = st.file_uploader(
+    "📤 Upload Image (Crowd Frame)",
+    type=["jpg", "jpeg", "png"]
+)
 
-with col1:
-    if st.button("▶ Start System"):
-        st.session_state.running = True
-        st.session_state.history = []
-        st.session_state.gate_index = 0
-        st.session_state.cycle_count = 0
-        st.session_state.frame_count = 0
-
-with col2:
-    if st.button("⏹ Stop System"):
-        st.session_state.running = False
-
-
-# ---------------- SAFE CAMERA HANDLING ----------------
-if cv2 is None:
-    st.error("❌ OpenCV not supported on Streamlit Cloud")
+if uploaded_file is None:
+    st.warning("Upload an image to start detection")
     st.stop()
 
-cap = cv2.VideoCapture(0)
-
-if not cap.isOpened():
-    st.error("❌ Camera not available on Cloud. Use local system or video upload.")
-    st.stop()
+image = Image.open(uploaded_file)
+frame = np.array(image)
 
 
-# ---------------- UI ----------------
-left, right = st.columns([2.5, 1.5])
+# ---------------- YOLO DETECTION ----------------
+results = model(frame)
 
-frame_box = left.image([])
-bottom1, bottom2 = left.columns(2)
-seat_box = bottom1.empty()
-emergency_box = bottom2.empty()
+count = 0
+for r in results:
+    for box in r.boxes:
+        cls = int(box.cls[0])
+        conf = float(box.conf[0])
 
-dashboard = right.empty()
-graph_box = st.empty()
+        # person class = 0
+        if cls == 0 and conf > 0.5:
+            count += 1
 
 
-# ---------------- DATA ----------------
+# ---------------- FAKE 4 GATES SPLIT ----------------
 crowd = {
-    "gate1": 0,
-    "gate2": 0,
-    "gate3": 0,
-    "gate4": 0
+    "gate1": count // 4,
+    "gate2": count // 4,
+    "gate3": count // 4,
+    "gate4": count - (count // 4 * 3)
 }
 
-gate_list = ["gate1", "gate2", "gate3", "gate4"]
+total = sum(crowd.values())
 
 
-# ---------------- ENGINE ----------------
-def smart_engine(data):
-    best_gate = min(data, key=data.get)
-    best_count = data[best_gate]
-    total = sum(data.values())
-
-    return {
-        "route": f"""
-✅ Gate : {best_gate.upper()}  
-👥 Crowd : {best_count} People  
-🚶 Status : Fast Entry Available
-""",
-        "seat": "❌ Seats filling fast" if total > 50 else "🟢 Seats available",
-        "emergency": "🚨 CROWD ALERT!" if max(data.values()) > 30 else "🟢 Normal"
-    }
+# ---------------- BEST GATE ----------------
+best_gate = min(crowd, key=crowd.get)
 
 
-def color_card(box, title, status):
-    if "🚨" in status or "❌" in status:
-        box.error(f"### {title}\n{status}")
-    else:
-        box.success(f"### {title}\n{status}")
+# ---------------- UI OUTPUT ----------------
+st.image(frame, caption="📷 Input Image", use_container_width=True)
+
+st.success(f"👥 Total Crowd Detected: {total}")
+st.info(f"🚪 Best Entry Gate: {best_gate.upper()}")
+
+if total > 40:
+    st.error("🚨 High Crowd Alert")
+else:
+    st.success("🟢 Normal Crowd")
 
 
-# ---------------- MAIN LOOP ----------------
-while st.session_state.running:
+# ---------------- DASHBOARD ----------------
+st.markdown("## 🏟 Gate Wise Crowd")
 
-    ret, frame = cap.read()
-    if not ret:
-        st.error("❌ Frame not received from camera")
-        break
+st.write(crowd)
 
-    # YOLO detection
-    results = model(frame, verbose=False)
 
-    count = 0
-    for r in results:
-        for box in r.boxes:
-            if int(box.cls[0]) == 0 and float(box.conf[0]) > 0.6:
-                count += 1
+# ---------------- HISTORY ----------------
+st.session_state.history.append([
+    crowd["gate1"],
+    crowd["gate2"],
+    crowd["gate3"],
+    crowd["gate4"]
+])
 
-    # ---------------- CYCLIC GATE SYSTEM ----------------
-    current_gate = gate_list[st.session_state.gate_index]
-    crowd[current_gate] = count
 
-    st.session_state.frame_count += 1
+df = pd.DataFrame(
+    st.session_state.history,
+    columns=["gate1", "gate2", "gate3", "gate4"]
+)
 
-    if st.session_state.frame_count % 30 == 0:
-        st.session_state.gate_index += 1
+# ---------------- GRAPH ----------------
+fig = px.line(
+    df,
+    x=df.index,
+    y=["gate1", "gate2", "gate3", "gate4"],
+    title="📊 Crowd Trend Graph",
+    height=350
+)
 
-        if st.session_state.gate_index >= len(gate_list):
-            st.session_state.gate_index = 0
-            st.session_state.cycle_count += 1
+st.plotly_chart(fig, use_container_width=True)
 
-    analysis = smart_engine(crowd)
 
-    # ---------------- VIDEO ----------------
-    cv2.putText(
-        frame,
-        f"{current_gate.upper()} | People: {count}",
-        (30, 50),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        1,
-        (0, 255, 0),
-        2
-    )
-
-    frame_box.image(frame, channels="BGR")
-
-    color_card(seat_box, "🎟 Seat Status", analysis["seat"])
-    color_card(emergency_box, "🚨 Emergency", analysis["emergency"])
-
-    # ---------------- DASHBOARD ----------------
-    total_crowd = sum(crowd.values())
-
-    dashboard.markdown(f"""
-## 🏟 Smart Dashboard
-
-### 🔄 Cycle Count
-**{st.session_state.cycle_count}**
-
----
-
-### 🧭 Best Entry
-{analysis['route']}
-
----
-
-### 👥 Total Crowd
-**{total_crowd} People**
-
----
-
-### 🚪 Gate Status
-Gate1 : {crowd['gate1']}  
-Gate2 : {crowd['gate2']}  
-Gate3 : {crowd['gate3']}  
-Gate4 : {crowd['gate4']}
-
----
-
-### 📊 Status
-{"🔥 High Crowd Expected" if total_crowd > 40 else "🟢 Normal"}
-""")
-
-    # ---------------- HISTORY ----------------
-    st.session_state.history.append([
-        crowd["gate1"],
-        crowd["gate2"],
-        crowd["gate3"],
-        crowd["gate4"]
-    ])
-
-    df = pd.DataFrame(
-        st.session_state.history,
-        columns=["gate1", "gate2", "gate3", "gate4"]
-    )
-
-    # ---------------- GRAPH ----------------
-    fig = px.line(
-        df,
-        x=df.index,
-        y=["gate1", "gate2", "gate3", "gate4"],
-        title="📊 Crowd Live Graph",
-        height=300
-    )
-
-    graph_box.plotly_chart(fig)
-
-    time.sleep(0.05)
-
-cap.release()
+# ---------------- CYCLE INFO ----------------
+st.session_state.cycle += 1
+st.caption(f"Cycle: {st.session_state.cycle}")
