@@ -10,7 +10,7 @@ st.set_page_config(layout="wide")
 # ---------------- MODEL ----------------
 model = YOLO("yolov8n.pt")
 
-st.title("🏟 Smart Stadium AI System - Stable Cyclic Scanner")
+st.title("🏟 Smart Stadium AI System")
 
 # ---------------- SESSION STATE ----------------
 if "running" not in st.session_state:
