@@ -1,7 +1,7 @@
 streamlit
-ultralytics
+ultralytics==8.0.196
+numpy
 pandas
 plotly
-numpy
 Pillow
 opencv-python-headless
